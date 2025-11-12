@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簡易計價程式 (分區版)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        h1, h2, h3 {
+            text-align: center;
+            color: #5a009d;
+        }
+        h2 {
+            margin-top: 25px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #f0e6f9;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"], select {
+            width: 100%;
+            padding: 8px;
+            box-sizing: border-box;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        /* 全域設定區塊 */
+        .global-settings {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            padding: 15px;
+            background-color: #fdfdfd;
+            border: 1px dashed #5a009d;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        /* 獨立計算區塊 */
+        .calc-section {
+            border: 1px solid #ccc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            background-color: #fafafa;
+        }
+        .package-options {
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        .package-options label {
+            font-weight: normal;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 1em;
+        }
+        .pkg-input {
+            width: 55px;
+            padding: 4px;
+            margin-left: 8px;
+            font-size: 1em;
+            text-align: center;
+        }
+        
+        /* --- 按鈕樣式 (更新) --- */
+        .button-group {
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* 計算按鈕 2/3, 清除按鈕 1/3 */
+            gap: 10px;
+            margin-top: 10px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            font-weight: bold;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        #calculateButton {
+            background-color: #5a009d;
+            color: white;
+        }
+        #calculateButton:hover {
+            background-color: #4a0080;
+        }
+        /* 新增：清除按鈕樣式 */
+        #clearButton {
+            background-color: #6c757d; /* 灰色 */
+            color: white;
+            font-size: 16px;
+        }
+        #clearButton:hover {
+            background-color: #5a6268;
+        }
+        /* --- 按鈕樣式結束 --- */
+
+        #results {
+            margin-top: 20px;
+        }
+        .results-block {
+            padding: 15px;
+            background-color: #fdfdfd;
+            border: 1px dashed #ccc;
+            border-radius: 4px;
+            margin-bottom: 15px;
+        }
+        .results-block h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .results-block p {
+            font-size: 1.1em;
+            margin: 10px 0;
+        }
+        .section-total {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #333; 
+            text-align: right;
+            margin-top: 5px;
+        }
+        .grand-total-price {
+            font-size: 2em; 
+            font-weight: bold;
+            color: #5a009d; 
+            text-align: center;
+            margin: 5px 0;
+        }
+        .overage-separator {
+            border: 0;
+            border-top: 1px dashed #d90000; 
+            margin: 10px 0;
+        }
+        .overage-highlight {
+            font-weight: bold;
+            font-size: 1.25em;
+            color: #d90000; 
+            margin-top: 10px;
+            text-align: right;
+        }
+        fieldset[disabled] {
+            opacity: 0.5;
+            background-color: #eee;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>櫃檯簡易計價程式</h1>
+
+        <div class="global-settings">
+            <div class="form-group">
+                <label for="dayType">時段 (全域)</label>
+                <select id="dayType">
+                    <option value="weekday">平日</option>
+                    <option value="weekend">假日</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="isMember">顧客身份 (全域)</label>
+                <select id="isMember">
+                    <option value="member">會員</option>
+                    <option value="non-member">非會員</option>
+                </select>
+            </div>
+        </div>
+
+        <fieldset class="calc-section">
+            <legend><h2>上網計算區</h2></legend>
+            <div class="form-group">
+                <label for="personCount_internet">人數</label>
+                <input type="number" id="personCount_internet" min="0" value="1">
+            </div>
+            <fieldset id="package-fieldset-internet" class="form-group package-fieldset">
+                <legend style="font-weight: bold; margin-bottom: 5px;">包時方案 (會員專用)</legend>
+                <div class="package-options">
+                    <label>3 小時: <input type="number" id="pkg3_count_internet" min="0" value="" class="pkg-input"> 個</label>
+                    <label>6 小時: <input type="number" id="pkg6_count_internet" min="0" value="" class="pkg-input"> 個</label>
+                    <label>9 小時: <input type="number" id="pkg9_count_internet" min="0" value="" class="pkg-input"> 個</label>
+                </div>
+            </fieldset>
+            <div class="form-group">
+                <label for="totalMinutes_internet">總消費分鐘</label>
+                <input type="number" id="totalMinutes_internet" placeholder="上網總分鐘數" min="0" value="">
+            </div>
+        </fieldset>
+
+        <fieldset class="calc-section">
+            <legend><h2>看書計算區</h2></legend>
+            <div class="form-group">
+                <label for="personCount_reading">人數</label>
+                <input type="number" id="personCount_reading" min="0" value="1">
+            </div>
+            <fieldset id="package-fieldset-reading" class="form-group package-fieldset">
+                <legend style="font-weight: bold; margin-bottom: 5px;">包時方案 (會員專用)</legend>
+                <div class="package-options">
+                    <label>3 小時: <input type="number" id="pkg3_count_reading" min="0" value="" class="pkg-input"> 個</label>
+                    <label>6 小時: <input type="number" id="pkg6_count_reading" min="0" value="" class="pkg-input"> 個</label>
+                    <label>9 小時: <input type="number" id="pkg9_count_reading" min="0" value="" class="pkg-input"> 個</label>
+                </div>
+            </fieldset>
+            <div class="form-group">
+                <label for="totalMinutes_reading">總消費分鐘</label>
+                <input type="number" id="totalMinutes_reading" placeholder="看書總分鐘數" min="0" value="">
+            </div>
+        </fieldset>
+
+        <div class="button-group">
+            <button id="calculateButton">計算總金額</button>
+            <button id="clearButton" type="button">清除所有資料</button>
+        </div>
+
+        <div id="results" style="display: none;">
+            <div id="results-internet" class="results-block">
+                <h3>上網區 (應收)</h3>
+                <p>包時金額: <span id="result-pkg-total-internet"></span> 元</p>
+                <p class="section-total">總金額: <span id="result-total-internet"></span> 元</p>
+                <hr class="overage-separator">
+                <p class="overage-highlight">超時金額: <span id="result-overage-total-internet"></span> 元</p>
+                <p id="error-message-internet" style="color: #d90000; font-weight: bold;"></p>
+            </div>
+            <div id="results-reading" class="results-block">
+                <h3>看書區 (應收)</h3>
+                <p>包時金額: <span id="result-pkg-total-reading"></span> 元</p>
+                <p class="section-total">總金額: <span id="result-total-reading"></span> 元</p>
+                <hr class="overage-separator">
+                <p class="overage-highlight">超時金額: <span id="result-overage-total-reading"></span> 元</p>
+                <p id="error-message-reading" style="color: #d90000; font-weight: bold;"></p>
+            </div>
+            <div id="grand-total-block" class="results-block">
+                <h3 style="text-align: center; color: #5a009d;">總計</h3>
+                <p>總包時金額: <span id="grand-total-pkg"></span> 元</p>
+                <p class="grand-total-price">總應收金額: <span id="grand-total-price"></span> 元</p>
+                <hr class="overage-separator">
+                <p class="overage-highlight">總超時金額: <span id="grand-total-overage"></span> 元</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 資料庫 (根據您的圖片) ---
+        const packagePrices = {
+            weekday: {
+                reading: { 3: 210, 6: 360, 9: 450 },
+                internet: { 3: 240, 6: 400, 9: 500 }
+            },
+            weekend: {
+                reading: { 3: 240, 6: 420, 9: 540 },
+                internet: { 3: 270, 6: 470, 9: 600 }
+            }
+        };
+        const perMinuteRates = {
+            reading: 1.66,
+            internet: 1.83
+        };
+        const minCharges = {
+            reading: 100,
+            internet: 110
+        };
+
+        // --- 核心功能 ---
+
+        // 結帳金額尾數未滿5元以5元計價
+        function roundUpTo5(price) {
+            const flooredPrice = Math.floor(price);
+            const remainder = flooredPrice % 10;
+            if (remainder === 0 || remainder === 5) {
+                return flooredPrice; 
+            }
+            return Math.ceil(flooredPrice / 5) * 5;
+        }
+
+        /**
+         * 獨立計算單一區塊的價格
+         * @returns {object} 包含價格詳情的物件
+         */
+        function calculateSingleSectionPrice(serviceType, dayType, isMember, personCount, pkg3_count, pkg6_count, pkg9_count, totalMinutes) {
+            
+            // 注意：因為預設人數是 1，所以 0 人 0 分的判斷要小心
+            // 如果分鐘數為 0，無論如何都算 0
+            if (totalMinutes === 0) {
+                 return {
+                    displayBase: 0,
+                    displayOverage: 0,
+                    finalTotal: 0,
+                    errorMessage: ""
+                };
+            }
+             // 如果人數為 0，也算 0
+            if (personCount === 0) {
+                 return {
+                    displayBase: 0,
+                    displayOverage: 0,
+                    finalTotal: 0,
+                    errorMessage: ""
+                };
+            }
+
+
+            const rate = perMinuteRates[serviceType];
+            const minCharge = minCharges[serviceType];
+            const prices = packagePrices[dayType][serviceType];
+
+            let basePrice = 0;
+            let overagePrice = 0;
+            let singlePersonTotalPrice = 0; // 單人總價 (未進位)
+            let packageMinutes = 0;
+            let errorMessage = "";
+
+            // 邏輯判斷 (計算單人價格)
+            if (!isMember) {
+                if (pkg3_count > 0 || pkg6_count > 0 || pkg9_count > 0) {
+                    errorMessage = "錯誤：非會員無法選擇包時方案。";
+                }
+                const rawPrice = totalMinutes * rate;
+                basePrice = Math.max(rawPrice, minCharge);
+                overagePrice = 0;
+                singlePersonTotalPrice = basePrice;
+            } else {
+                basePrice += prices[3] * pkg3_count;
+                packageMinutes += 180 * pkg3_count;
+                basePrice += prices[6] * pkg6_count;
+                packageMinutes += 360 * pkg6_count;
+                basePrice += prices[9] * pkg9_count;
+                packageMinutes += 540 * pkg9_count;
+
+                if (packageMinutes > 0) { // 會員有選包時
+                    const overageMinutes = Math.max(0, totalMinutes - packageMinutes);
+                    if (overageMinutes > 0) {
+                        const rawOverage = overageMinutes * rate;
+                        const discountedOverage = rawOverage * 0.9;
+                        overagePrice = discountedOverage;
+                    }
+                    singlePersonTotalPrice = basePrice + overagePrice;
+                } else { // 會員 (不包時，以分鐘計價)
+                    const rawPrice = totalMinutes * rate;
+                    const priceBeforeDiscount = Math.max(rawPrice, minCharge);
+                    basePrice = priceBeforeDiscount * 0.9;
+                    singlePersonTotalPrice = basePrice;
+                }
+            }
+
+            // 最終結算 (計算單人)
+            let displayBase = 0; // 單人包時 (最終)
+            let displayOverage = 0; // 單人超時 (最終)
+            let finalSingleTotal = 0; // 單人進位後的總價
+
+            if (!isMember) {
+                displayBase = 0;
+                displayOverage = 0;
+                finalSingleTotal = roundUpTo5(singlePersonTotalPrice);
+            } else if (packageMinutes > 0) {
+                displayBase = basePrice; // 包時費是固定價格
+                displayOverage = roundUpTo5(overagePrice); // 超時費才進位
+                finalSingleTotal = displayBase + displayOverage;
+            } else {
+                displayBase = 0;
+                displayOverage = 0;
+                finalSingleTotal = roundUpTo5(singlePersonTotalPrice);
+            }
+
+            // 計算總金額 (單人總價 * 人數)
+            const finalTotal = finalSingleTotal * personCount;
+            
+            return {
+                displayBase: displayBase, // 單人包時價 (用於加總)
+                displayOverage: displayOverage, // 單人超時價 (用於加總)
+                finalTotal: finalTotal, // 區塊總價 (已 * 人數)
+                errorMessage: errorMessage
+            };
+        }
+
+        /**
+         * 主函數：讀取所有 DOM 並顯示結果
+         */
+        function displayCalculations() {
+            // 1. 讀取全域設定
+            const dayType = document.getElementById('dayType').value;
+            const isMember = (document.getElementById('isMember').value === 'member');
+
+            // 2. 讀取「上網區」輸入
+            //    更新：|| 0 確保 parseInt('') 變為 0
+            const personCount_internet = parseInt(document.getElementById('personCount_internet').value) || 0;
+            const pkg3_count_internet = parseInt(document.getElementById('pkg3_count_internet').value) || 0;
+            const pkg6_count_internet = parseInt(document.getElementById('pkg6_count_internet').value) || 0;
+            const pkg9_count_internet = parseInt(document.getElementById('pkg9_count_internet').value) || 0;
+            const totalMinutes_internet = parseInt(document.getElementById('totalMinutes_internet').value) || 0;
+
+            // 3. 讀取「看書區」輸入
+            const personCount_reading = parseInt(document.getElementById('personCount_reading').value) || 0;
+            const pkg3_count_reading = parseInt(document.getElementById('pkg3_count_reading').value) || 0;
+            const pkg6_count_reading = parseInt(document.getElementById('pkg6_count_reading').value) || 0;
+            const pkg9_count_reading = parseInt(document.getElementById('pkg9_count_reading').value) || 0;
+            const totalMinutes_reading = parseInt(document.getElementById('totalMinutes_reading').value) || 0;
+
+            // 4. 計算兩個區塊
+            const internetResult = calculateSingleSectionPrice('internet', dayType, isMember, personCount_internet, pkg3_count_internet, pkg6_count_internet, pkg9_count_internet, totalMinutes_internet);
+            const readingResult = calculateSingleSectionPrice('reading', dayType, isMember, personCount_reading, pkg3_count_reading, pkg6_count_reading, pkg9_count_reading, totalMinutes_reading);
+
+            // 5. 顯示結果
+            document.getElementById('results').style.display = 'block';
+
+            // --- 計算上網區總計 ---
+            const internetPkgTotal = internetResult.displayBase * personCount_internet;
+            const internetOverageTotal = internetResult.displayOverage * personCount_internet;
+            const internetFinalTotal = internetResult.finalTotal;
+            
+            // 顯示上網區結果
+            document.getElementById('result-pkg-total-internet').innerText = internetPkgTotal;
+            document.getElementById('result-total-internet').innerText = internetFinalTotal + " 元";
+            document.getElementById('result-overage-total-internet').innerText = internetOverageTotal + " 元";
+            document.getElementById('error-message-internet').innerText = internetResult.errorMessage;
+
+            // --- 計算看書區總計 ---
+            const readingPkgTotal = readingResult.displayBase * personCount_reading;
+            const readingOverageTotal = readingResult.displayOverage * personCount_reading;
+            const readingFinalTotal = readingResult.finalTotal;
+
+            // 顯示看書區結果
+            document.getElementById('result-pkg-total-reading').innerText = readingPkgTotal;
+            document.getElementById('result-total-reading').innerText = readingFinalTotal + " 元";
+            document.getElementById('result-overage-total-reading').innerText = readingOverageTotal + " 元";
+            document.getElementById('error-message-reading').innerText = readingResult.errorMessage;
+
+            // --- 計算總計 ---
+            const grandPkgTotal = internetPkgTotal + readingPkgTotal;
+            const grandOverageTotal = internetOverageTotal + readingOverageTotal;
+            const grandTotal = internetFinalTotal + readingFinalTotal;
+
+            // 6. 顯示總金額
+            document.getElementById('grand-total-pkg').innerText = grandPkgTotal + " 元";
+            document.getElementById('grand-total-price').innerText = grandTotal + " 元";
+            document.getElementById('grand-total-overage').innerText = grandOverageTotal + " 元";
+        }
+
+        /**
+         * 新增：清除所有輸入的函數
+         */
+        function clearInputs() {
+            // 重設全域設定
+            document.getElementById('dayType').value = 'weekday';
+            document.getElementById('isMember').value = 'member';
+
+            // 重設上網區
+            document.getElementById('personCount_internet').value = 1;
+            document.getElementById('pkg3_count_internet').value = '';
+            document.getElementById('pkg6_count_internet').value = '';
+            document.getElementById('pkg9_count_internet').value = '';
+            document.getElementById('totalMinutes_internet').value = '';
+
+            // 重設看書區
+            document.getElementById('personCount_reading').value = 1;
+            document.getElementById('pkg3_count_reading').value = '';
+            document.getElementById('pkg6_count_reading').value = '';
+            document.getElementById('pkg9_count_reading').value = '';
+            document.getElementById('totalMinutes_reading').value = '';
+
+            // 手動觸發 'change' 事件來重設 "會員" 相關的 disabled 狀態
+            document.getElementById('isMember').dispatchEvent(new Event('change'));
+
+            // 隱藏結果
+            document.getElementById('results').style.display = 'none';
+        }
+
+        // --- 事件監聽 ---
+        document.getElementById('calculateButton').addEventListener('click', displayCalculations);
+        document.getElementById('clearButton').addEventListener('click', clearInputs); // 新增
+
+        // 會員身份切換時，控制 *所有* 包時方案是否可選
+        document.getElementById('isMember').addEventListener('change', function() {
+            const isMember = (this.value === 'member');
+            const packageFieldsets = document.querySelectorAll('.package-fieldset');
+            
+            packageFieldsets.forEach(fieldset => {
+                fieldset.disabled = !isMember;
+            });
+            
+            if (!isMember) {
+                const pkgInputs = document.querySelectorAll('.pkg-input');
+                pkgInputs.forEach(input => {
+                    input.value = ''; // 改為清除
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>
